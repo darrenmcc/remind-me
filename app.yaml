@@ -1,0 +1,14 @@
+runtime: go
+api_version: go1.8
+threadsafe: true
+module: default
+
+instance_class: F2
+
+handlers:
+- url: /remindme
+  script: _go_app
+  login: admin
+- url: /new
+  script: _go_app
+
