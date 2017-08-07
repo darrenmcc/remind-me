@@ -34,6 +34,8 @@ type ReminderData struct {
 var (
 	email  string
 	secret string
+
+	loc, _ = time.LoadLocation("America/New_York")
 )
 
 func init() {
@@ -107,11 +109,12 @@ func remindme(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	// get reminders from datastore
-	now := time.Now()
+	now := time.Now().In(loc)
 	var reminders []ReminderData
 	_, err := datastore.NewQuery(reminderKind).
 		Filter("Month =", now.Month()).
-		Filter("Day =", now.Day()).GetAll(ctx, &reminders)
+		Filter("Day =", now.Day()).
+		GetAll(ctx, &reminders)
 	if err != nil {
 		log.Errorf(ctx, "unable to get reminders: %s", err)
 		http.Error(w, "unable to get reminders", http.StatusInternalServerError)
