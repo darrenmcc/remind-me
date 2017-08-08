@@ -140,7 +140,7 @@ func remindme(w http.ResponseWriter, r *http.Request) {
 
 		// send the email
 		err = mail.Send(ctx, &mail.Message{
-			Sender: fmt.Sprintf("RemindMe <%s>", email),
+			Sender: fmt.Sprintf("RemindMe <%s>", "remindme@darren-reminder.appspotmail.com"),
 			To:     []string{email},
 			Subject: fmt.Sprintf("You have %d reminder%s for %s",
 				n, s, time.Now().Format("02-Jan-06")),
