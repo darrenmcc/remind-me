@@ -72,7 +72,7 @@ func new(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&reminder)
 	if err != nil {
 		log.Errorf(ctx, "unable to unmarshal json: %s", err)
-		http.Error(w, "nunable to unmarshal json", http.StatusInternalServerError)
+		http.Error(w, "unable to unmarshal json", http.StatusInternalServerError)
 		return
 	}
 
@@ -80,7 +80,7 @@ func new(w http.ResponseWriter, r *http.Request) {
 	_, err = datastore.Put(ctx, key, reminderToData(&reminder))
 	if err != nil {
 		log.Errorf(ctx, "unable to put reminder: %s", err)
-		http.Error(w, "nunable to put reminder", http.StatusInternalServerError)
+		http.Error(w, "unable to put reminder", http.StatusInternalServerError)
 		return
 	}
 
