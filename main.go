@@ -3,6 +3,7 @@ package remindme
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -49,11 +50,11 @@ func init() {
 		panic("unable to find secret in env")
 	}
 
-	http.HandleFunc("/remindme", remindme)
-	http.HandleFunc("/new", new)
+	http.HandleFunc("/remindme", remind)
+	http.HandleFunc("/new", newReminder)
 }
 
-func new(w http.ResponseWriter, r *http.Request) {
+func newReminder(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	if r.Method != "POST" {
 		log.Errorf(ctx, "not a post")
@@ -77,7 +78,7 @@ func new(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := datastore.NewKey(ctx, reminderKind, "", time.Now().UnixNano(), nil)
-	_, err = datastore.Put(ctx, key, reminderToData(&reminder))
+	_, err = datastore.Put(ctx, key, reminderToData(reminder))
 	if err != nil {
 		log.Errorf(ctx, "unable to put reminder: %s", err)
 		http.Error(w, "unable to put reminder", http.StatusInternalServerError)
@@ -85,27 +86,28 @@ func new(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("success"))
+	io.WriteString(w, "created reminder: "+reminder.Message)
 }
 
-func reminderToData(r *Reminder) *ReminderData {
+func reminderToData(r Reminder) ReminderData {
 	tokens := strings.Split(r.Date, "-")
-	month, _ := strconv.Atoi(tokens[1])
-	day, _ := strconv.Atoi(tokens[2])
 	var year int
 	if !r.Repeat {
 		year, _ = strconv.Atoi(tokens[0])
 	}
-	return &ReminderData{
+	month, _ := strconv.Atoi(tokens[1])
+	day, _ := strconv.Atoi(tokens[2])
+
+	return ReminderData{
 		Message: r.Message,
+		Year:    year,
 		Month:   month,
 		Day:     day,
-		Year:    year,
 		Created: time.Now().Unix(),
 	}
 }
 
-func remindme(w http.ResponseWriter, r *http.Request) {
+func remind(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 
 	// get reminders from datastore
@@ -140,11 +142,11 @@ func remindme(w http.ResponseWriter, r *http.Request) {
 
 		// send the email
 		err = mail.Send(ctx, &mail.Message{
-			Sender: fmt.Sprintf("RemindMe <%s>", "remindme@darren-reminder.appspotmail.com"),
+			Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
 			To:     []string{email},
 			Subject: fmt.Sprintf("You have %d reminder%s for %s",
 				n, s, time.Now().Format("02-Jan-06")),
-			Body: strings.Join(messages, "\n"),
+			Body: enumerateMessages(messages),
 		})
 		if err != nil {
 			log.Errorf(ctx, "unable to send email: %s", err)
@@ -154,4 +156,11 @@ func remindme(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func enumerateMessages(messages []string) (body string) {
+	for i, msg := range messages {
+		body += fmt.Sprintf("%d. %s\n", i+1, msg)
+	}
+	return body
 }
