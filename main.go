@@ -89,7 +89,7 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "created reminder: "+reminder.Message)
 }
 
-func reminderToData(r Reminder) ReminderData {
+func reminderToData(r Reminder) *ReminderData {
 	tokens := strings.Split(r.Date, "-")
 	var year int
 	if !r.Repeat {
@@ -98,7 +98,7 @@ func reminderToData(r Reminder) ReminderData {
 	month, _ := strconv.Atoi(tokens[1])
 	day, _ := strconv.Atoi(tokens[2])
 
-	return ReminderData{
+	return &ReminderData{
 		Message: r.Message,
 		Year:    year,
 		Month:   month,
