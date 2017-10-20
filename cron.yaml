@@ -2,6 +2,6 @@ cron:
 
 - description: daily reminder check
   url: /remindme
-  schedule: every day 09:30
+  schedule: every day 06:00
   timezone: America/New_York
   target: default
