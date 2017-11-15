@@ -56,7 +56,7 @@ func init() {
 
 func newReminder(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		log.Errorf(ctx, "not a post")
 		http.Error(w, "not a post", http.StatusBadRequest)
 		return
