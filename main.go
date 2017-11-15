@@ -150,7 +150,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			log.Errorf(ctx, "unable to send email: %s", err)
-			http.Error(w, "unable to send email", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
