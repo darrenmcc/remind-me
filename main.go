@@ -54,6 +54,15 @@ func init() {
 	http.HandleFunc("/new", newReminder)
 }
 
+// listReminders will list the next n remindeds.
+func listReminders(w http.ResponseWriter, r *http.Request) {
+	// ctx := appengine.NewContext(r)
+	// now := time.Now().In(loc)
+	// oneMo := time.Now().In(loc).AddDate(0, 1, 0)
+
+	// datastore.NewQuery(reminderKind).
+}
+
 func newReminder(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	if r.Method != http.MethodPost {
