@@ -16,7 +16,13 @@ import (
 	"google.golang.org/appengine/mail"
 )
 
-const reminderKind = "reminder"
+const (
+	reminderKind = "reminder"
+	dateFmt      = "Monday Jan 02, 2006"
+
+	maxSubjectLength  = 78
+	baseSubjectLength = 51
+)
 
 type Reminder struct {
 	Message string `json:"message"`
@@ -52,15 +58,6 @@ func init() {
 
 	http.HandleFunc("/remindme", remind)
 	http.HandleFunc("/new", newReminder)
-}
-
-// listReminders will list the next n remindeds.
-func listReminders(w http.ResponseWriter, r *http.Request) {
-	// ctx := appengine.NewContext(r)
-	// now := time.Now().In(loc)
-	// oneMo := time.Now().In(loc).AddDate(0, 1, 0)
-
-	// datastore.NewQuery(reminderKind).
 }
 
 func newReminder(w http.ResponseWriter, r *http.Request) {
@@ -142,29 +139,39 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		messages = append(messages, r.Message)
 	}
 
-	n := len(messages)
-	if n > 0 {
-		var s string
-		if n > 1 {
-			s = "s"
-		}
+	eml := mail.Message{
+		Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
+		To:     []string{email},
+	}
 
-		// send the email
-		err = mail.Send(ctx, &mail.Message{
-			Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
-			To:     []string{email},
-			Subject: fmt.Sprintf("You have %d reminder%s for %s",
-				n, s, time.Now().Format("02-Jan-06")),
-			Body: enumerateMessages(messages),
-		})
-		if err != nil {
-			log.Errorf(ctx, "unable to send email: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	switch {
+	// we have no reminds for today, exit
+	case len(messages) == 0:
+		w.WriteHeader(http.StatusOK)
+		return
+	// if we only have 1 reminder and it's short enough to fit in the subject line
+	case len(messages) == 1 && len(messages[0]) <= maxSubjectLength-baseSubjectLength:
+		eml.Subject = fmt.Sprintf("You have 1 reminder for %s: '%s' EOM",
+			time.Now().Format("Monday Jan 02, 2006"),
+			messages[0])
+	// multiple reminders or 1 long one, enumerate them in the body
+	default:
+		eml.Subject = fmt.Sprintf("You have %d reminders for %s",
+			len(messages),
+			time.Now().Format(dateFmt))
+		eml.Body = enumerateMessages(messages)
+	}
+
+	// send the email
+	err = mail.Send(ctx, &eml)
+	if err != nil {
+		log.Errorf(ctx, "unable to send email: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
+	return
 }
 
 func enumerateMessages(messages []string) (body string) {
