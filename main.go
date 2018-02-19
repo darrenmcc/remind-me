@@ -122,36 +122,31 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	eml := mail.Message{
-		Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
-		To:     []string{email},
-	}
-
 	var s string
 
 	switch {
-	// we have no reminds for today, exit
 	case len(messages) == 0:
+		// we have no reminds for today, exit
 		w.WriteHeader(http.StatusOK)
 		return
-
 	case len(messages) > 1:
+		// pluralize 'reminders'
 		s = "s"
-		fallthrough
+	}
 
-	// multiple reminders, enumerate them in the body
-	default:
-		eml.Subject = fmt.Sprintf("You have %d reminder%s for %s",
-			len(messages),
-			s,
-			time.Now().Format("Monday Jan 02, 2006"))
-		for i, msg := range messages {
-			eml.Body += fmt.Sprintf("%d. %s\n", i+1, msg)
-		}
+	var body string
+	for i, msg := range messages {
+		body += fmt.Sprintf("%d. %s\n", i+1, msg)
 	}
 
 	// send the email
-	err = mail.Send(ctx, &eml)
+	err = mail.Send(ctx, &mail.Message{
+		Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
+		To:     []string{email},
+		Subject: fmt.Sprintf("You have %d reminder%s for %s",
+			len(messages), s, time.Now().Format("Monday Jan 02, 2006")),
+		Body: body,
+	})
 	if err != nil {
 		log.Errorf(ctx, "unable to send email: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -159,7 +154,6 @@ func remind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	return
 }
 
 func mustEnv(k string) string {
