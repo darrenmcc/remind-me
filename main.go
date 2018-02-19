@@ -3,7 +3,6 @@ package remindme
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,9 +18,6 @@ import (
 const (
 	reminderKind = "reminder"
 	dateFmt      = "Monday Jan 02, 2006"
-
-	maxSubjectLength  = 78
-	baseSubjectLength = 51
 )
 
 type Reminder struct {
@@ -42,7 +38,13 @@ var (
 	email  string
 	secret string
 
-	loc, _ = time.LoadLocation("America/New_York")
+	loc = func() *time.Location {
+		loc, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			panic(err)
+		}
+		return loc
+	}()
 )
 
 func init() {
@@ -92,7 +94,8 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	io.WriteString(w, "created reminder: "+reminder.Message)
+	fmt.Fprintf(w, "created reminder: '%s' for %d (repeat=%t)",
+		reminder.Message, reminder.Date, reminder.Repeat)
 }
 
 func reminderToData(r Reminder) *ReminderData {
@@ -132,11 +135,10 @@ func remind(w http.ResponseWriter, r *http.Request) {
 	// filter messages we don't want to send
 	var messages []string
 	for _, r := range reminders {
-		if r.Year != 0 && r.Year != now.Year() {
-			continue
+		if r.Year == 0 || r.Year == now.Year() {
+			log.Infof(ctx, r.Message)
+			messages = append(messages, r.Message)
 		}
-		log.Infof(ctx, r.Message)
-		messages = append(messages, r.Message)
 	}
 
 	eml := mail.Message{
@@ -144,20 +146,23 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		To:     []string{email},
 	}
 
+	var s string
+
 	switch {
 	// we have no reminds for today, exit
 	case len(messages) == 0:
 		w.WriteHeader(http.StatusOK)
 		return
-	// if we only have 1 reminder and it's short enough to fit in the subject line
-	case len(messages) == 1 && len(messages[0]) <= maxSubjectLength-baseSubjectLength:
-		eml.Subject = fmt.Sprintf("You have 1 reminder for %s: '%s' EOM",
-			time.Now().Format("Monday Jan 02, 2006"),
-			messages[0])
-	// multiple reminders or 1 long one, enumerate them in the body
+
+	case len(messages) > 1:
+		s = "s"
+		fallthrough
+
+	// multiple reminders, enumerate them in the body
 	default:
-		eml.Subject = fmt.Sprintf("You have %d reminders for %s",
+		eml.Subject = fmt.Sprintf("You have %d reminder%s for %s",
 			len(messages),
+			s,
 			time.Now().Format(dateFmt))
 		eml.Body = enumerateMessages(messages)
 	}
