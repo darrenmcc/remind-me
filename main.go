@@ -15,10 +15,7 @@ import (
 	"google.golang.org/appengine/mail"
 )
 
-const (
-	reminderKind = "reminder"
-	dateFmt      = "Monday Jan 02, 2006"
-)
+const reminderKind = "reminder"
 
 type Reminder struct {
 	Message string `json:"message"`
@@ -35,29 +32,13 @@ type ReminderData struct {
 }
 
 var (
-	email  string
-	secret string
+	email  = mustEnv("EMAIL")
+	secret = mustEnv("SECRET")
 
-	loc = func() *time.Location {
-		loc, err := time.LoadLocation("America/New_York")
-		if err != nil {
-			panic(err)
-		}
-		return loc
-	}()
+	loc, _ = time.LoadLocation("America/New_York")
 )
 
 func init() {
-	var ok bool
-	email, ok = os.LookupEnv("EMAIL")
-	if !ok {
-		panic("unable to find email in env")
-	}
-	secret, ok = os.LookupEnv("SECRET")
-	if !ok {
-		panic("unable to find secret in env")
-	}
-
 	http.HandleFunc("/remindme", remind)
 	http.HandleFunc("/new", newReminder)
 }
@@ -163,8 +144,10 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		eml.Subject = fmt.Sprintf("You have %d reminder%s for %s",
 			len(messages),
 			s,
-			time.Now().Format(dateFmt))
-		eml.Body = enumerateMessages(messages)
+			time.Now().Format("Monday Jan 02, 2006"))
+		for i, msg := range messages {
+			eml.Body += fmt.Sprintf("%d. %s\n", i+1, msg)
+		}
 	}
 
 	// send the email
@@ -179,9 +162,10 @@ func remind(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func enumerateMessages(messages []string) (body string) {
-	for i, msg := range messages {
-		body += fmt.Sprintf("%d. %s\n", i+1, msg)
+func mustEnv(k string) string {
+	v := os.Getenv(k)
+	if v == "" {
+		panic("unable to find '" + k + "' in env")
 	}
-	return body
+	return v
 }

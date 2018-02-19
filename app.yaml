@@ -4,9 +4,6 @@ threadsafe: true
 module: default
 instance_class: F1
 
-automatic_scaling:
-  min_idle_instances: 0
-
 handlers:
 - url: /remindme
   script: _go_app
