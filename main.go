@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -30,7 +29,6 @@ type reminderData struct {
 	Month   int
 	Day     int
 	Year    int
-	Created int64
 }
 
 var (
@@ -95,7 +93,6 @@ func reminderToData(r reminder) *reminderData {
 		Year:    year,
 		Month:   month,
 		Day:     day,
-		Created: time.Now().Unix(),
 	}
 }
 
