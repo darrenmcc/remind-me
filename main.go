@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
@@ -17,13 +19,13 @@ import (
 
 const reminderKind = "reminder"
 
-type Reminder struct {
+type reminder struct {
 	Message string `json:"message"`
 	Date    string `json:"date"`
 	Repeat  bool   `json:"repeat"`
 }
 
-type ReminderData struct {
+type reminderData struct {
 	Message string
 	Month   int
 	Day     int
@@ -58,7 +60,7 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reminder Reminder
+	var reminder reminder
 	err := json.NewDecoder(r.Body).Decode(&reminder)
 	if err != nil {
 		log.Errorf(ctx, "unable to unmarshal json: %s", err)
@@ -79,7 +81,7 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 		reminder.Message, reminder.Date, reminder.Repeat)
 }
 
-func reminderToData(r Reminder) *ReminderData {
+func reminderToData(r reminder) *reminderData {
 	tokens := strings.Split(r.Date, "-")
 	var year int
 	if !r.Repeat {
@@ -88,7 +90,7 @@ func reminderToData(r Reminder) *ReminderData {
 	month, _ := strconv.Atoi(tokens[1])
 	day, _ := strconv.Atoi(tokens[2])
 
-	return &ReminderData{
+	return &reminderData{
 		Message: r.Message,
 		Year:    year,
 		Month:   month,
@@ -98,56 +100,79 @@ func reminderToData(r Reminder) *ReminderData {
 }
 
 func remind(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+	var (
+		now     = time.Now().In(loc)
+		y, m, d = now.Year(), now.Month(), now.Day()
 
-	// get reminders from datastore
-	now := time.Now().In(loc)
-	var reminders []ReminderData
-	_, err := datastore.NewQuery(reminderKind).
-		Filter("Month =", now.Month()).
-		Filter("Day =", now.Day()).
-		GetAll(ctx, &reminders)
+		errg, ctx    = errgroup.WithContext(appengine.NewContext(r))
+		reminderChan = make(chan *reminderData)
+	)
+
+	// get reminders for this year
+	errg.Go(func() error {
+		var data []*reminderData
+		_, err := datastore.NewQuery(reminderKind).
+			Filter("Month =", m).
+			Filter("Day =", d).
+			Filter("Year =", y).
+			GetAll(ctx, &data)
+		for _, reminder := range data {
+			reminderChan <- reminder
+		}
+		return err
+	})
+
+	// get repeating reminders
+	errg.Go(func() error {
+		var data []*reminderData
+		_, err := datastore.NewQuery(reminderKind).
+			Filter("Month =", m).
+			Filter("Day =", d).
+			Filter("Year =", 0).
+			GetAll(ctx, &data)
+		for _, reminder := range data {
+			reminderChan <- reminder
+		}
+		return err
+	})
+
+	err := errg.Wait()
 	if err != nil {
 		log.Errorf(ctx, "unable to get reminders: %s", err)
 		http.Error(w, "unable to get reminders", http.StatusInternalServerError)
 		return
 	}
 
-	// filter messages we don't want to send
-	var messages []string
-	for _, r := range reminders {
-		if r.Year == 0 || r.Year == now.Year() {
-			log.Infof(ctx, r.Message)
-			messages = append(messages, r.Message)
-		}
+	// collect reminders
+	var reminders []*reminderData
+	for reminder := range reminderChan {
+		reminders = append(reminders, reminder)
 	}
 
 	var s string
-
 	switch {
-	case len(messages) == 0:
-		// we have no reminds for today, exit
+	case len(reminders) == 0:
+		// no reminders for today, exit
 		w.WriteHeader(http.StatusOK)
 		return
-	case len(messages) > 1:
+	case len(reminders) > 1:
 		// pluralize 'reminders'
 		s = "s"
 	}
 
 	var body string
-	for i, msg := range messages {
-		body += fmt.Sprintf("%d. %s\n", i+1, msg)
+	for i, r := range reminders {
+		body += fmt.Sprintf("%d. %s\n", i+1, r.Message)
 	}
 
 	// send the email
-	err = mail.Send(ctx, &mail.Message{
+	if err := mail.Send(ctx, &mail.Message{
 		Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
 		To:     []string{email},
 		Subject: fmt.Sprintf("You have %d reminder%s for %s",
-			len(messages), s, time.Now().Format("Monday Jan 02, 2006")),
+			len(reminders), s, time.Now().Format("Monday Jan 02, 2006")),
 		Body: body,
-	})
-	if err != nil {
+	}); err != nil {
 		log.Errorf(ctx, "unable to send email: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
