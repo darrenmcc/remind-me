@@ -75,7 +75,7 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "created reminder: '%s' for %d (repeat=%t)",
+	fmt.Fprintf(w, "created reminder: '%s' for %s (repeat=%t)",
 		reminder.Message, reminder.Date, reminder.Repeat)
 }
 
