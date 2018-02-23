@@ -125,7 +125,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		_, err := datastore.NewQuery(reminderKind).
 			Filter("Month =", m).
 			Filter("Day =", d).
-			Filter("Year =", 0).
+			Filter("Year =", 0). // zero denotes a yearly repeating reminder
 			GetAll(ctx, &data)
 		for _, reminder := range data {
 			reminderChan <- reminder
