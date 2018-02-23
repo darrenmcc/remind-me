@@ -102,7 +102,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		y, m, d = now.Year(), now.Month(), now.Day()
 
 		errg, ctx    = errgroup.WithContext(appengine.NewContext(r))
-		reminderChan = make(chan *reminderData)
+		reminderChan = make(chan *reminderData, 2)
 	)
 
 	// get reminders for this year
