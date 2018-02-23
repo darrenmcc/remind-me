@@ -102,7 +102,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		y, m, d = now.Year(), now.Month(), now.Day()
 
 		errg, ctx    = errgroup.WithContext(appengine.NewContext(r))
-		reminderChan = make(chan *reminderData, 2)
+		reminderChan = make(chan *reminderData)
 	)
 
 	// get reminders for this year
@@ -133,17 +133,19 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		return err
 	})
 
+	// collect reminders
+	var reminders []*reminderData
+	go func() {
+		for reminder := range reminderChan {
+			reminders = append(reminders, reminder)
+		}
+	}()
+
 	err := errg.Wait()
 	if err != nil {
 		log.Errorf(ctx, "unable to get reminders: %s", err)
 		http.Error(w, "unable to get reminders", http.StatusInternalServerError)
 		return
-	}
-
-	// collect reminders
-	var reminders []*reminderData
-	for reminder := range reminderChan {
-		reminders = append(reminders, reminder)
 	}
 
 	var s string
