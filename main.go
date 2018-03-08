@@ -95,6 +95,7 @@ func reminderToData(r reminder) *reminderData {
 		Year:    year,
 		Month:   month,
 		Day:     day,
+		Created: time.Now().Unix(),
 	}
 }
 
