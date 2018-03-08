@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -101,14 +102,16 @@ func reminderToData(r reminder) *reminderData {
 
 func remind(w http.ResponseWriter, r *http.Request) {
 	var (
+		ctx = appengine.NewContext(r)
+
 		now     = time.Now().In(loc)
 		y, m, d = now.Year(), now.Month(), now.Day()
 
-		errg, ctx    = errgroup.WithContext(appengine.NewContext(r))
 		reminderChan = make(chan *reminderData)
 	)
 
 	// get reminders for this year
+	var errg errgroup.Group
 	errg.Go(func() error {
 		var data []*reminderData
 		_, err := datastore.NewQuery(reminderKind).
@@ -137,11 +140,14 @@ func remind(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// collect reminders
+	var wg sync.WaitGroup
+	wg.Add(1)
 	var reminders []*reminderData
 	go func() {
 		for reminder := range reminderChan {
 			reminders = append(reminders, reminder)
 		}
+		wg.Done()
 	}()
 
 	err := errg.Wait()
@@ -150,6 +156,9 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unable to get reminders", http.StatusInternalServerError)
 		return
 	}
+
+	close(reminderChan)
+	wg.Wait()
 
 	var s string
 	switch {
@@ -164,7 +173,9 @@ func remind(w http.ResponseWriter, r *http.Request) {
 
 	var body string
 	for i, r := range reminders {
-		body += fmt.Sprintf("%d. %s\n", i+1, r.Message)
+		line := fmt.Sprintf("%d. %s\n", i+1, r.Message)
+		log.Infof(ctx, line)
+		body += line
 	}
 
 	// send the email
@@ -172,7 +183,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		Sender: "RemindMe <remindme@darren-reminder.appspotmail.com>",
 		To:     []string{email},
 		Subject: fmt.Sprintf("You have %d reminder%s for %s",
-			len(reminders), s, time.Now().Format("Monday Jan 02, 2006")),
+			len(reminders), s, now.Format("Monday Jan 02, 2006")),
 		Body: body,
 	}); err != nil {
 		log.Errorf(ctx, "unable to send email: %s", err)
