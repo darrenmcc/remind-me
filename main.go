@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
@@ -29,6 +30,7 @@ type reminderData struct {
 	Month   int
 	Day     int
 	Year    int
+	Created int64
 }
 
 var (
@@ -116,7 +118,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		for _, reminder := range data {
 			reminderChan <- reminder
 		}
-		return err
+		return errors.Wrap(err, "unable to query for reminders for this year")
 	})
 
 	// get repeating reminders
@@ -130,7 +132,7 @@ func remind(w http.ResponseWriter, r *http.Request) {
 		for _, reminder := range data {
 			reminderChan <- reminder
 		}
-		return err
+		return errors.Wrap(err, "unable to query for repeating reminders")
 	})
 
 	// collect reminders
