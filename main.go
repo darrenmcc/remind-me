@@ -77,9 +77,14 @@ func newReminder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rType := "instant"
+	if reminder.Repeat {
+		rType = "repeating"
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	fmt.Fprintf(w, "created reminder: '%s' for %s (repeat=%t)",
-		reminder.Message, reminder.Date, reminder.Repeat)
+	fmt.Fprintf(w, "created %s reminder: '%s' for %s",
+		rType, reminder.Message, reminder.Date)
 }
 
 func reminderToData(r reminder) *reminderData {
