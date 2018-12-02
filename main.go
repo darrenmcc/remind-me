@@ -49,8 +49,8 @@ func init() {
 func newReminder(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	if r.Method != http.MethodPost {
-		log.Errorf(ctx, "not a post")
-		http.Error(w, "not a post", http.StatusBadRequest)
+		log.Errorf(ctx, "wanted method %s, got %s", http.MethodPost, r.Method)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
