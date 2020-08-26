@@ -10,7 +10,8 @@ import (
 
 func main() {
 	svc, err := remindme.NewService(
-		mustEnv("EMAIL"),
+		mustEnv("TO"),
+		mustEnv("FROM"),
 		mustEnv("SECRET"),
 		mustEnv("SENDGRID_SECRET"),
 	)

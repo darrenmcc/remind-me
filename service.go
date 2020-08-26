@@ -41,11 +41,12 @@ type reminderData struct {
 type service struct {
 	ds       *datastore.Client
 	sendgrid *sendgrid.Client
-	email    string
+	to       string
+	from     string
 	secret   string
 }
 
-func NewService(email, secret, sgSecret string) (dizmo.Service, error) {
+func NewService(to, from, secret, sgSecret string) (dizmo.Service, error) {
 	ctx := context.Background()
 	ds, err := datastore.NewClient(ctx, dizmo.GoogleProjectID())
 	if err != nil {
@@ -55,8 +56,9 @@ func NewService(email, secret, sgSecret string) (dizmo.Service, error) {
 	return &service{
 		ds:       ds,
 		sendgrid: sendgrid.NewSendClient(sgSecret),
-		email:    email,
 		secret:   secret,
+		to:       to,
+		from:     from,
 	}, nil
 }
 
@@ -215,12 +217,12 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 
 	eml := mail.NewSingleEmail(
 		// TDOD: consider using another email so gmail doesn't think it's spam
-		mail.NewEmail("RemindMe", s.email),
+		mail.NewEmail("RemindMe", s.from),
 		fmt.Sprintf("You have %d reminder%s for %s",
 			len(results),
 			plural,
 			now.Format("Monday Jan 02, 2006")),
-		mail.NewEmail(s.email, s.email),
+		mail.NewEmail(s.to, s.to),
 		"XXX", // just can't be empty, screw plaintext emails apparently
 		body)
 	response, err := s.sendgrid.Send(eml)
