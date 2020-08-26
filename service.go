@@ -207,7 +207,7 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 
 	var body string
 	for i, r := range results {
-		line := fmt.Sprintf("%d. %s\n", i+1, r.Message)
+		line := fmt.Sprintf("<li>%d. %s</li>", i+1, r.Message)
 		dizmo.Infof(ctx, line)
 		body += line
 	}
