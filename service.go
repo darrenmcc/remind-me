@@ -205,12 +205,13 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 
 	dizmo.Infof(ctx, "found %d reminder%s", len(results), plural)
 
-	var body string
-	for i, r := range results {
-		line := fmt.Sprintf("<li>%d. %s</li>", i+1, r.Message)
+	body := `<ol type="1">`
+	for _, r := range results {
+		line := fmt.Sprintf("<li>%s</li>", r.Message)
 		dizmo.Infof(ctx, line)
 		body += line
 	}
+	body += `</ol>`
 
 	eml := mail.NewSingleEmail(
 		// TDOD: consider using another email so gmail doesn't think it's spam
