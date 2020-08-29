@@ -117,8 +117,8 @@ func (s *service) New(ctx context.Context, req interface{}) (interface{}, error)
 		rType = "repeating"
 	}
 
-	return dizmo.NewJSONStatusResponse(fmt.Sprintf("created %s reminder [id=%s]: '%s' for %s",
-		rType, key.String(), reminder.Message, reminder.Date), http.StatusCreated), nil
+	return dizmo.NewJSONStatusResponse(fmt.Sprintf("created %s reminder [id=%d]: '%s' for %s",
+		rType, key.ID, reminder.Message, reminder.Date), http.StatusCreated), nil
 }
 
 func reminderToData(r reminder) *reminderData {
