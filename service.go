@@ -108,6 +108,9 @@ func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, err
 		return err
 	})
 	if err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			return nil, dizmo.NewErrorStatusResponse(fmt.Sprintf("no reminder with id=%d exists", id), http.StatusBadRequest)
+		}
 		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
 	}
 	return dizmo.NewJSONStatusResponse(fmt.Sprintf("reminder '%s' deleted", data.Message), http.StatusOK), nil
