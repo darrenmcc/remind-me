@@ -110,7 +110,7 @@ func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, err
 	if err != nil {
 		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
 	}
-	return dizmo.NewJSONStatusResponse(fmt.Sprintf("reminder %q deleted", data.Message), http.StatusOK), nil
+	return dizmo.NewJSONStatusResponse(fmt.Sprintf("reminder '%s' deleted", data.Message), http.StatusOK), nil
 }
 
 func (s *service) authDecoder(ctx context.Context, r *http.Request) (interface{}, error) {
