@@ -14,6 +14,7 @@ import (
 	"github.com/darrenmcc/dizmo"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 	"golang.org/x/sync/errgroup"
@@ -76,7 +77,44 @@ func (s *service) HTTPEndpoints() map[string]map[string]dizmo.HTTPEndpoint {
 				Endpoint: s.RemindMe,
 			},
 		},
+		"/delete/{id:[0-9]+}": {
+			"GET": {
+				Endpoint: s.RemindMe,
+			},
+		},
 	}
+}
+
+func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, error) {
+	r := req.(*http.Request)
+	_, err := s.authDecoder(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	id, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
+	}
+
+	var data reminderData
+	_, err = s.ds.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+		k := datastore.IDKey(reminderKind, id, nil)
+		err := tx.Get(k, &data)
+		if err != nil {
+			return err
+		}
+		data.Year = 1991 // just set the year far in the past to "delete"
+		_, err = tx.Put(k, &data)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Commit()
+		return err
+	}, nil)
+	if err != nil {
+		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
+	}
+	return dizmo.NewJSONStatusResponse(fmt.Sprintf("reminder %q deleted", data.Message), http.StatusOK), nil
 }
 
 func (s *service) authDecoder(ctx context.Context, r *http.Request) (interface{}, error) {
