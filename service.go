@@ -105,12 +105,8 @@ func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, err
 		}
 		data.Year = 1991 // just set the year far in the past to "delete"
 		_, err = tx.Put(k, &data)
-		if err != nil {
-			return err
-		}
-		_, err = tx.Commit()
 		return err
-	}, nil)
+	})
 	if err != nil {
 		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
 	}
