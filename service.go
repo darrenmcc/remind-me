@@ -77,9 +77,9 @@ func (s *service) HTTPEndpoints() map[string]map[string]dizmo.HTTPEndpoint {
 				Endpoint: s.RemindMe,
 			},
 		},
-		"/delete/{id:[0-9]+}": {
-			"GET": {
-				Endpoint: s.RemindMe,
+		"/{id:[0-9]+}": {
+			"DELETE": {
+				Endpoint: s.Delete,
 			},
 		},
 	}
