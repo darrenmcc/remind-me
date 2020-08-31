@@ -13,7 +13,7 @@ import (
 	"cloud.google.com/go/datastore"
 	"github.com/darrenmcc/dizmo"
 	"github.com/go-kit/kit/endpoint"
-	httptransport "github.com/go-kit/kit/transport/http"
+	kittransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
@@ -283,7 +283,7 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 // these methods fullfill dizmos "Service" interface but aren't being used yet.
 func (s *service) Middleware(e endpoint.Endpoint) endpoint.Endpoint { return e }
 func (s *service) HTTPMiddleware(h http.Handler) http.Handler       { return h }
-func (s *service) HTTPOptions() []httptransport.ServerOption        { return nil }
+func (s *service) HTTPOptions() []kittransport.ServerOption         { return nil }
 func (s *service) HTTPRouterOptions() []dizmo.RouterOption          { return nil }
 func (s *service) RPCMiddleware() grpc.UnaryServerInterceptor       { return nil }
 func (s *service) RPCOptions() []grpc.ServerOption                  { return nil }
