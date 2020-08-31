@@ -79,14 +79,14 @@ func (s *service) HTTPEndpoints() map[string]map[string]dizmo.HTTPEndpoint {
 		},
 		"/{id:[0-9]+}": {
 			"DELETE": {
+				Decoder:  s.deleteDecoder,
 				Endpoint: s.Delete,
 			},
 		},
 	}
 }
 
-func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, error) {
-	r := req.(*http.Request)
+func (s *service) deleteDecoder(ctx context.Context, r *http.Request) (interface{}, error) {
 	_, err := s.authDecoder(ctx, r)
 	if err != nil {
 		return nil, err
@@ -95,9 +95,13 @@ func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, err
 	if err != nil {
 		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
 	}
+	return id, nil
+}
 
+func (s *service) Delete(ctx context.Context, req interface{}) (interface{}, error) {
+	id := req.(int64)
 	var data reminderData
-	_, err = s.ds.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
+	_, err := s.ds.RunInTransaction(ctx, func(tx *datastore.Transaction) error {
 		k := datastore.IDKey(reminderKind, id, nil)
 		err := tx.Get(k, &data)
 		if err != nil {
