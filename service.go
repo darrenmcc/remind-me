@@ -146,8 +146,8 @@ func (s *service) newDecoder(ctx context.Context, r *http.Request) (interface{},
 
 func (s *service) New(ctx context.Context, req interface{}) (interface{}, error) {
 	reminder := req.(reminder)
-	key := datastore.IDKey(reminderKind, time.Now().UnixNano(), nil)
-	_, err := s.ds.Put(ctx, key, reminderToData(reminder))
+
+	k, err := s.ds.Put(ctx, datastore.IncompleteKey(reminderKind, nil), reminderToData(reminder))
 	if err != nil {
 		dizmo.Errorf(ctx, "unable to put reminder: %s", err)
 		return nil, dizmo.NewErrorStatusResponse("unable to put reminder: "+err.Error(), http.StatusInternalServerError)
@@ -157,9 +157,10 @@ func (s *service) New(ctx context.Context, req interface{}) (interface{}, error)
 	if reminder.Repeat {
 		rType = "repeating"
 	}
-
-	return dizmo.NewJSONStatusResponse(fmt.Sprintf("created %s reminder [id=%d]: '%s' for %s",
-		rType, key.ID, reminder.Message, reminder.Date), http.StatusCreated), nil
+	resp := fmt.Sprintf("created %s reminder '%s' for %s [id=%d]",
+		rType, reminder.Message, reminder.Date, k.ID)
+	dizmo.Debugf(ctx, resp)
+	return dizmo.NewJSONStatusResponse(resp, http.StatusCreated), nil
 }
 
 func reminderToData(r reminder) *reminderData {
