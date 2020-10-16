@@ -45,7 +45,7 @@ var form = func() *template.Template {
 					<textarea class="form-control" id="message" name="message" rows="3"></textarea>
 				</div>
 				<div class="form-group">
-					<input type="date" id="date" name="date" min="{{ .MinDate }}">
+					<input type="date" id="date" name="date" value="{{ .MinDate }}" min="{{ .MinDate }}">
 				</div>
 				<div>
 					<input type="checkbox" id="repeat" name="repeat" value="true">
