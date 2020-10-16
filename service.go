@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,9 +66,22 @@ func NewService(to, from, secret, sgSecret string) (dizmo.Service, error) {
 
 func (s *service) HTTPEndpoints() map[string]map[string]dizmo.HTTPEndpoint {
 	return map[string]map[string]dizmo.HTTPEndpoint{
+		"/": {
+			"GET": {
+				Decoder:  s.authDecoder,
+				Endpoint: s.Home,
+				Encoder:  s.HomeEncoder,
+			},
+		},
 		"/new": {
 			"POST": {
 				Decoder:  s.newDecoder,
+				Endpoint: s.New,
+			},
+		},
+		"/new-form": {
+			"POST": {
+				Decoder:  s.newFormDecoder,
 				Endpoint: s.New,
 			},
 		},
@@ -129,6 +143,18 @@ func (s *service) authDecoder(ctx context.Context, r *http.Request) (interface{}
 	return nil, nil
 }
 
+func (s *service) newFormDecoder(ctx context.Context, r *http.Request) (interface{}, error) {
+	_, err := s.authDecoder(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	return reminder{
+		Message: r.PostFormValue("message"),
+		Date:    r.PostFormValue("date"),
+		Repeat:  r.PostFormValue("repeat") == "true",
+	}, nil
+}
+
 func (s *service) newDecoder(ctx context.Context, r *http.Request) (interface{}, error) {
 	_, err := s.authDecoder(ctx, r)
 	if err != nil {
@@ -138,7 +164,8 @@ func (s *service) newDecoder(ctx context.Context, r *http.Request) (interface{},
 	var reminder reminder
 	err = json.NewDecoder(r.Body).Decode(&reminder)
 	if err != nil {
-		dizmo.Errorf(ctx, "unable to unmarshal json: %s", err)
+		b, _ := httputil.DumpRequest(r, true)
+		dizmo.Errorf(ctx, "unable to unmarshal json: %s\n%s", err, b)
 		return nil, dizmo.NewErrorStatusResponse(err.Error(), http.StatusInternalServerError)
 	}
 	return reminder, nil
