@@ -22,7 +22,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-const reminderKind = "reminder"
+const (
+	reminderKind = "reminder"
+	humanDateFmt = "Monday Jan 02, 2006"
+)
 
 var eastern, _ = time.LoadLocation("America/New_York")
 
@@ -185,9 +188,17 @@ func (s *service) New(ctx context.Context, req interface{}) (interface{}, error)
 		rType = "repeating"
 	}
 	resp := fmt.Sprintf("created %s reminder '%s' for %s [id=%d]",
-		rType, reminder.Message, reminder.Date, k.ID)
+		rType, reminder.Message, dateToDate(reminder.Date), k.ID)
 	dizmo.Debugf(ctx, resp)
 	return dizmo.NewJSONStatusResponse(resp, http.StatusCreated), nil
+}
+
+func dateToDate(date string) string {
+	t, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		panic(err)
+	}
+	return t.Format(humanDateFmt)
 }
 
 func reminderToData(r reminder) *reminderData {
@@ -288,9 +299,7 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 		// TDOD: consider using another email so gmail doesn't think it's spam
 		s.from,
 		fmt.Sprintf("You have %d reminder%s for %s",
-			len(results),
-			plural,
-			now.Format("Monday Jan 02, 2006")),
+			len(results), plural, now.Format(humanDateFmt)),
 		s.to,
 		"XXX", // just can't be empty, screw plaintext emails apparently
 		body)
