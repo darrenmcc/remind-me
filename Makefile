@@ -2,7 +2,7 @@ PROJ := darren-prd
 SERVICE = remindme
 
 build: 
-	CGO_ENABLED=0 GOOS=linux go build -o server ./app/. && mv server ./app 
+	CGO_ENABLED=0 GOOS=linux go build -o ./app/server ./app
 
 deploy: build
 	docker build --tag gcr.io/$(PROJ)/$(SERVICE) ./app/. 

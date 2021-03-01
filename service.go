@@ -194,6 +194,10 @@ func (s *service) New(ctx context.Context, req interface{}) (interface{}, error)
 }
 
 func dateToDate(date string) string {
+	if date == "" {
+		// default to tomorrow
+		return time.Now().In(eastern).AddDate(0, 0, 1).Format(humanDateFmt)
+	}
 	t, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		panic(err)
