@@ -3,6 +3,7 @@ package remindme
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -25,6 +26,8 @@ import (
 const (
 	reminderKind = "reminder"
 	humanDateFmt = "Monday Jan 02, 2006"
+
+	CRReleaseKind = "CloudRunReleaseNote"
 )
 
 var eastern, _ = time.LoadLocation("America/New_York")
@@ -98,6 +101,12 @@ func (s *service) HTTPEndpoints() map[string]map[string]dizmo.HTTPEndpoint {
 			"DELETE": {
 				Decoder:  s.deleteDecoder,
 				Endpoint: s.Delete,
+			},
+		},
+		"/cloud-run": {
+			"POST": {
+				Decoder:  s.authDecoder,
+				Endpoint: s.checkCR,
 			},
 		},
 	}
@@ -318,6 +327,109 @@ func (s *service) RemindMe(ctx context.Context, req interface{}) (interface{}, e
 	}
 
 	return dizmo.NewJSONStatusResponse(response, http.StatusOK), nil
+}
+
+type Entry struct {
+	Text    string `xml:",chardata"`
+	Title   string `xml:"title"`
+	ID      string `xml:"id"`
+	Updated string `xml:"updated"`
+	Link    struct {
+		Text string `xml:",chardata"`
+		Rel  string `xml:"rel,attr"`
+		Href string `xml:"href,attr"`
+	} `xml:"link"`
+	Content struct {
+		Text string `xml:",chardata"`
+		Type string `xml:"type,attr"`
+	} `xml:"content"`
+}
+
+type Feed struct {
+	XMLName xml.Name `xml:"feed"`
+	Text    string   `xml:",chardata"`
+	Xmlns   string   `xml:"xmlns,attr"`
+	ID      string   `xml:"id"`
+	Title   string   `xml:"title"`
+	Link    struct {
+		Text string `xml:",chardata"`
+		Rel  string `xml:"rel,attr"`
+		Href string `xml:"href,attr"`
+	} `xml:"link"`
+	Author struct {
+		Text string `xml:",chardata"`
+		Name string `xml:"name"`
+	} `xml:"author"`
+	Updated string  `xml:"updated"`
+	Entries []Entry `xml:"entry"`
+}
+
+func (s *service) checkCR(ctx context.Context, req interface{}) (interface{}, error) {
+	resp, err := http.Get("https://cloud.google.com/feeds/run-release-notes.xml")
+	if err != nil {
+		dizmo.Debugf(ctx, "unable to fetch feed: %s", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var feed Feed
+	err = xml.NewDecoder(resp.Body).Decode(&feed)
+	if err != nil {
+		dizmo.Debugf(ctx, "unable to decode feed: %s", err)
+		return nil, err
+	}
+
+	latest := feed.Entries[0]
+
+	var data Entry
+	date := strings.Split(latest.ID, "#")[1]
+	k := datastore.NameKey(CRReleaseKind, date, nil)
+	err = s.ds.Get(ctx, k, &data)
+	switch err {
+	case nil: // we're up to date, return
+		dizmo.Debugf(ctx, "no new cloud run release notes for %s", date)
+		return nil, nil
+	case datastore.ErrNoSuchEntity: // new release note
+		content := strings.ToLower(latest.Content.Text)
+		nfeatures := strings.Count(content, ">feature<")
+		nchanges := strings.Count(content, ">changed<")
+
+		var changes string
+		if nchanges > 0 {
+			changes = fmt.Sprintf(" and %d change%s", nchanges, plural(nchanges))
+		}
+
+		msg := fmt.Sprintf("Cloud Run has %d new feature%s%s", nfeatures, plural(nfeatures), changes)
+		dizmo.Debugf(ctx, msg)
+
+		_, err := s.sendgrid.Send(mail.NewSingleEmail(
+			s.from,
+			msg,
+			s.to,
+			"XXX", // just can't be empty, screw plaintext emails apparently
+			"https://cloud.google.com/run/docs/release-notes\n\n"+latest.Content.Text))
+		if err != nil {
+			dizmo.Debugf(ctx, "unable to send email: %s", err)
+			return nil, err
+		}
+
+		_, err = s.ds.Put(ctx, k, &latest)
+		if err != nil {
+			dizmo.Debugf(ctx, "unable to write entry to datastore: %s", err)
+			return nil, err
+		}
+		return nil, nil
+	default:
+		dizmo.Debugf(ctx, "unable to fetch from datastore: %s", err)
+		return nil, err
+	}
+}
+
+func plural(n int) string {
+	if n > 1 {
+		return "s"
+	}
+	return ""
 }
 
 // these methods fullfill dizmos "Service" interface but aren't being used yet.
