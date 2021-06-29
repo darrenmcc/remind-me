@@ -387,7 +387,7 @@ func (s *service) checkCR(ctx context.Context, req interface{}) (interface{}, er
 	err = s.ds.Get(ctx, k, &data)
 	switch err {
 	case nil: // we're up to date, return
-		dizmo.Debugf(ctx, "no new cloud run release notes for %s", date)
+		dizmo.Debugf(ctx, "no new cloud run release notes since %s", date)
 		return nil, nil
 	case datastore.ErrNoSuchEntity: // new release note
 		content := strings.ToLower(latest.Content.Text)
