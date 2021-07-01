@@ -400,7 +400,7 @@ func (s *service) checkCR(ctx context.Context, req interface{}) (interface{}, er
 			if msg == "" {
 				msg = fmt.Sprintf("Cloud Run has %d new change%s", nchanges, plural(nchanges))
 			} else {
-				msg = fmt.Sprintf(" and %d change%s", nchanges, plural(nchanges))
+				msg += fmt.Sprintf(" and %d change%s", nchanges, plural(nchanges))
 			}
 		}
 
