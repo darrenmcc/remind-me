@@ -391,15 +391,19 @@ func (s *service) checkCR(ctx context.Context, req interface{}) (interface{}, er
 		return nil, nil
 	case datastore.ErrNoSuchEntity: // new release note
 		content := strings.ToLower(latest.Content.Text)
-		nfeatures := strings.Count(content, ">feature<")
-		nchanges := strings.Count(content, ">changed<")
 
-		var changes string
-		if nchanges > 0 {
-			changes = fmt.Sprintf(" and %d change%s", nchanges, plural(nchanges))
+		var msg string
+		if nfeatures := strings.Count(content, ">feature<"); nfeatures > 0 {
+			msg = fmt.Sprintf("Cloud Run has %d new feature%s", nfeatures, plural(nfeatures))
+		}
+		if nchanges := strings.Count(content, ">changed<"); nchanges > 0 {
+			if msg == "" {
+				msg = fmt.Sprintf("Cloud Run has %d new change%s", nchanges, plural(nchanges))
+			} else {
+				msg = fmt.Sprintf(" and %d change%s", nchanges, plural(nchanges))
+			}
 		}
 
-		msg := fmt.Sprintf("Cloud Run has %d new feature%s%s", nfeatures, plural(nfeatures), changes)
 		dizmo.Debugf(ctx, msg)
 
 		_, err := s.sendgrid.Send(mail.NewSingleEmail(
